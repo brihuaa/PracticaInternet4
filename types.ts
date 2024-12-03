@@ -1,18 +1,14 @@
-import { ObjectId } from "mongodb";
+import { OptionalId } from "mongodb";
 
-// Esquema para vehículos
+export type VehicleModel = OptionalId<{
+  name: string;
+  manufacturer: string;
+  year: number;
+}>;
+
 export type Vehicle = {
-  id?: ObjectId;
+  id: string;
   name: string;
   manufacturer: string;
   year: number;
 };
-
-// Esquema para repuestos
-export type VehiclePart = {
-  id?: ObjectId;
-  name: string;
-  price: number;
-  vehicleId: string;
-};
-

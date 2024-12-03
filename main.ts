@@ -1,7 +1,10 @@
-import { MongoClient } from 'mongodb'
-import { validarVehiculo } from "./utils.ts";
-import { Vehicle, VehiclePart } from "./types.ts";
+import { ApolloServer } from "@apollo/server";
+import { MongoClient } from "mongodb";
+import { startStandaloneServer } from "@apollo/server/standalone";
 
+import { VehicleModel, Vehicle } from "./types.ts";
+import { schema } from "./schema.ts";
+import { resolvers } from "./resolvers.ts";
 
 const url = 'mongodb+srv://otheruser:123456aaabbbb@cluster0.loyvx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 const client = new MongoClient(url);
@@ -13,62 +16,51 @@ console.log('Connected successfully to server');
 const db = client.db(dbName);
 
 
-const vehiclesCollection = db.collection<Vehicle>("vehicles");
-const partsCollection = db.collection<VehiclePart>("parts");
+const VehiclesCollection = db.collection("Vehiculos");
 
-const handler = async (req: Request): Promise<Response> => {
-  const url = new URL(req.url);
-  const method = req.method;
-  const path = url.pathname;
+const gqlSchema = makeExecutableSchema({
+  typeDefs: schema,
+  resolvers: resolvers,
+});
 
-  if (method === "POST" && path === "/vehicle") {
-    const data = await req.json();
-    const { name, manufacturer, year } = data;
+// Servidor HTTP para manejar consultas GraphQL
+serve(async (req) => {
+  try {
+    const { pathname } = new URL(req.url);
 
-    if (!name || !manufacturer || !year) {
-      return new Response(JSON.stringify({ error: "Datos inválidos" }), { status: 400 });
+    if (pathname === "/graphql" && req.method === "POST") {
+      const body = await req.json();
+
+      // Ejecutar consulta GraphQL
+      const { execute, parse, validate } = await import("https://deno.land/x/graphql_deno@v15.0.0/mod.ts");
+      const parsedQuery = parse(body.query);
+      const validationErrors = validate(gqlSchema, parsedQuery);
+
+      if (validationErrors.length > 0) {
+        return new Response(JSON.stringify({ errors: validationErrors }), { status: 400 });
+      }
+
+      const result = await execute({
+        schema: gqlSchema,
+        document: parsedQuery,
+        variableValues: body.variables,
+        contextValue: { VehiclesCollection },
+      });
+
+      return new Response(JSON.stringify(result), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
     }
 
-    const insertResult = await vehiclesCollection.insertOne({ name, manufacturer, year });
-    return new Response(JSON.stringify({ message: "Vehículo agregado", id: insertResult.toString() }), { status: 201 });
+    return new Response("Not Found", { status: 404 });
+  } catch (error) {
+    console.error("Error:", error);
+    return new Response(JSON.stringify({ error: createHttpError(500, error.message) }), {
+      headers: { "Content-Type": "application/json" },
+      status: 500,
+    });
   }
+});
 
-  if (method === "POST" && path === "/VehiclePart") {
-    const data = await req.json();
-    const { name, price, vehicleId } = data;
-
-    if (!name || !price || !vehicleId) {
-      return new Response(JSON.stringify({ error: "Datos inválidos" }), { status: 400 });
-    }
-
-    const vehiculoValido = await validarVehiculo(vehicleId, vehiclesCollection);
-    if (!vehiculoValido) {
-      return new Response(JSON.stringify({ error: "El vehículo no existe" }), { status: 400 });
-    }
-
-    const insertResult = await partsCollection.insertOne({ name, price, vehicleId });
-    return new Response(JSON.stringify({ message: "Repuesto agregado", id: insertResult.toString() }), { status: 201 });
-  }
-
-  if (method === "GET" && path === "/vehicles") {
-    const vehicles = await vehiclesCollection.find().toArray();
-    return new Response(JSON.stringify(vehicles), { status: 200 });
-  }
-
-  if (method === "GET" && path.startsWith("/vehicle/")) {
-    const id = path.split("/")[2];
-    const vehicle = await vehiclesCollection.findOne({ _id: new ObjectId(id) });
-    if (!vehicle) return new Response(JSON.stringify({ error: "Vehículo no encontrado" }), { status: 404 });
-
-    return new Response(JSON.stringify(vehicle), { status: 200 });
-  }
-
-  if (method === "GET" && path === "/parts") {
-    const parts = await partsCollection.find().toArray();
-    return new Response(JSON.stringify(parts), { status: 200 });
-  }
-
-  return new Response("Not found", { status: 404 });
-};
-
-Deno.serve({ port: 3000 }, handler);
+console.log("Server is running at http://localhost:8000/graphql");

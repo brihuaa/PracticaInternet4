@@ -1,11 +1,10 @@
-import { Collection, ObjectId } from "mongodb";
-import { Vehicle } from "./types.ts";
+import { Vehicle, VehicleModel } from "./types.ts";
 
-// Validar si un vehículo existe
-export const validarVehiculo = async (
-  vehicleId: string,
-  vehicleCollection: Collection<Vehicle>
-) => {
-  const vehicle = await vehicleCollection.findOne({ _id: new ObjectId(vehicleId) });
-  return Boolean(vehicle);
+export const formModelToVehicle = (vehicleModel: VehicleModel): Vehicle => {
+  return {
+    id: vehicleModel._id!.toString(),
+    name: vehicleModel.name,
+    manufacturer: vehicleModel.manufacturer,
+    year: vehicleModel.year,
+  };
 };
