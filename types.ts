@@ -9,9 +9,10 @@ export type Vehicle = {
 };
 
 // Esquema para repuestos
-export type Part = {
+export type VehiclePart = {
   id?: ObjectId;
   name: string;
   price: number;
   vehicleId: string;
 };
+

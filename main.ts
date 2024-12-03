@@ -1,6 +1,6 @@
 import { MongoClient } from 'mongodb'
 import { validarVehiculo } from "./utils.ts";
-import { Vehicle, Part } from "./types.ts";
+import { Vehicle, VehiclePart } from "./types.ts";
 
 
 const url = 'mongodb+srv://otheruser:123456aaabbbb@cluster0.loyvx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
@@ -14,7 +14,7 @@ const db = client.db(dbName);
 
 
 const vehiclesCollection = db.collection<Vehicle>("vehicles");
-const partsCollection = db.collection<Part>("parts");
+const partsCollection = db.collection<VehiclePart>("parts");
 
 const handler = async (req: Request): Promise<Response> => {
   const url = new URL(req.url);
@@ -33,7 +33,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ message: "Vehículo agregado", id: insertResult.toString() }), { status: 201 });
   }
 
-  if (method === "POST" && path === "/part") {
+  if (method === "POST" && path === "/VehiclePart") {
     const data = await req.json();
     const { name, price, vehicleId } = data;
 
